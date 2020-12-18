@@ -165,10 +165,11 @@ int main(int argc, char *argv[]) {
 
         if(0 == pat_is_find) {
             if(TS_PAT_PID == ts_packet_header.ts_PID) {
+                printf("Find PAT!~\n");
                 if(1 == ts_packet_header.payload_unit_start_indicator) {
-                    parse_ts_pat(ts_packet[4 + 1], &g_ts_pat);
+                    parse_ts_pat(&ts_packet[4 + 1], &g_ts_pat);
                 } else {
-                    parse_ts_pat(ts_packet[4], &g_ts_pat);
+                    parse_ts_pat(&ts_packet[4], &g_ts_pat);
                 }
                 
                 pat_is_find = 1;
