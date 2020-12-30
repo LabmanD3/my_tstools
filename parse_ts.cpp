@@ -110,13 +110,8 @@ typedef struct t_ts_pmt
 T_TS_PAT g_ts_pat = {0};
 std::vector<T_TS_PMT> g_ts_pmt;
 
-HANDLE_STATUS parse_ts_header(unsigned char *const header_data, T_TS_PACKET_HEADER *ts_header)
+HANDLE_STATUS parse_ts_header(unsigned char *data, T_TS_PACKET_HEADER *ts_header)
 {
-    unsigned char *data = header_data;
-
-    // T_TS_PACKET_HEADER ts_header = {0};
-    // memset(&ts_header, 0x0, sizeof(ts_header));
-
     ts_header->sync_byte                    = data[0];
     if (0x47 != ts_header->sync_byte) 
     {
@@ -130,15 +125,11 @@ HANDLE_STATUS parse_ts_header(unsigned char *const header_data, T_TS_PACKET_HEAD
     ts_header->adaptation_field_control     = (data[3] >> 4) & 0x3;
     ts_header->continuity_counter           = data[3] & 0x0F;
 
-    // memcpy(ts_packet_header, &ts_header, sizeof(ts_header));
-
     return PARSE_SUCCESS;
 }
 
-HANDLE_STATUS parse_ts_pat(unsigned char *const pat_data, T_TS_PAT *pat)
+HANDLE_STATUS parse_ts_pat(unsigned char *data, T_TS_PAT *pat)
 {
-    unsigned char *data = pat_data;
-
     pat->table_id = data[0];
     if (TS_PAT_TABLE_ID != pat->table_id)
         return PARSE_IS_NOT_PAT;
@@ -185,10 +176,8 @@ HANDLE_STATUS parse_ts_pat(unsigned char *const pat_data, T_TS_PAT *pat)
     return PARSE_SUCCESS;
 }
 
-HANDLE_STATUS parse_ts_pmt(unsigned char *const pmt_data, T_TS_PMT *pmt)
+HANDLE_STATUS parse_ts_pmt(unsigned char *data, T_TS_PMT *pmt)
 {
-    unsigned char *data = pmt_data;
-
     pmt->table_id = data[0];
     if (TS_PMT_TABLE_ID != pmt->table_id)
         return PARSE_IS_NOT_PMT;
