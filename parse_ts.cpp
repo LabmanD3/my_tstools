@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #define MAX_TS_PACKET_LEN 188
+#define SYNC_BYTE 0x47
 
 // PID
 #define TS_PAT_PID 0x0000
@@ -18,7 +19,7 @@
 
 // OK and NOT_OK defined
 #define PARSE_SUCCESS           1
-#define PARSE_TS_HEADER_FAIL    2
+#define PARSE_IS_NOT_SYNC_B     2
 #define PARSE_IS_NOT_PAT        3
 #define PARSE_IS_NOT_PMT        4
 
@@ -113,11 +114,9 @@ std::vector<T_TS_PMT> g_ts_pmt;
 HANDLE_STATUS parse_ts_header(unsigned char *data, T_TS_PACKET_HEADER *ts_header)
 {
     ts_header->sync_byte                    = data[0];
-    if (0x47 != ts_header->sync_byte) 
-    {
-        return PARSE_TS_HEADER_FAIL;
-    }
-    ts_header->transport_error_indicator    = data[1] >> 7;
+    if (SYNC_BYTE != ts_header->sync_byte)
+        return PARSE_IS_NOT_SYNC_B;
+    ts_header->transport_error_indicator = data[1] >> 7;
     ts_header->payload_unit_start_indicator = (data[1] >> 6) & 0x1;
     ts_header->transport_priority           = (data[1] >> 5) & 0x1;
     ts_header->ts_PID                       = ((data[1] & 0x1F) << 8) | data[2];
@@ -159,7 +158,6 @@ HANDLE_STATUS parse_ts_pat(unsigned char *data, T_TS_PAT *pat)
         unsigned program_num = (data[n + 8] << 8) | data[n + 9];
         pat->reserved_3 = data[n + 10] >> 5;
 
-        pat->network_PID = 0x00;
         if (0x00 == program_num)
         {
             pat->network_PID = ((data[n + 10] & 0x1F) << 8) | data[n + 11];
@@ -215,9 +213,11 @@ HANDLE_STATUS parse_ts_pmt(unsigned char *data, T_TS_PMT *pmt)
     // pmt->section_length + 2 (2: section_length 之前有 2bytes)
     for (; pos <= (pmt->section_length + 2) - 4;)
     {
-        T_TS_PMT_STREAM PMT_stream;
+        T_TS_PMT_STREAM PMT_stream; 
+        // stream_type：流类型，指出了PID为elementary_PID的基本流的类型
         PMT_stream.stream_type = data[pos];
         pmt->reserved_5 = data[pos + 1] >> 5;
+        // elementary_PID：标识了该节目（program_number）携带的基本流的识别号PID
         PMT_stream.elementary_PID = ((data[pos + 1] & 0x1F) << 8) | data[pos + 2];
         pmt->reserved_6 = data[pos + 3] >> 4;
         PMT_stream.ES_info_length = ((data[pos + 3] & 0x0F) << 8) | data[pos + 4];
@@ -278,10 +278,10 @@ int main(int argc, char *argv[])
             break;
         }
 
-        if(PARSE_SUCCESS != parse_ts_header(ts_packet, &ts_packet_header))
+        if (PARSE_IS_NOT_SYNC_B == parse_ts_header(ts_packet, &ts_packet_header))
         {
-            printf("parse ts header failed! \n");
-            exit(1);
+            fseek(fp, 1 - MAX_TS_PACKET_LEN, SEEK_CUR);
+            continue;
         }
 
         if (TS_PAT_PID == ts_packet_header.ts_PID)
